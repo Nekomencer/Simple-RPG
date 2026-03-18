@@ -343,6 +343,16 @@ function loop() {
   document.getElementById("gold").innerText = player.gold;
   document.getElementById("floor").innerText = floor;
 
+  const hpEl    = document.getElementById("hp");
+  const manaEl  = document.getElementById("mana");
+  const goldEl  = document.getElementById("gold");
+  const floorEl = document.getElementById("floor");
+
+  if (hpEl)    hpEl.innerText    = Math.floor(player.hp);
+  if (manaEl)  manaEl.innerText  = Math.floor(player.mana);
+  if (goldEl)  goldEl.innerText  = player.gold;
+  if (floorEl) floorEl.innerText = floor;
+
   requestAnimationFrame(loop);
 }
 
