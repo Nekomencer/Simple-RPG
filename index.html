@@ -5,12 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Endless Dungeon RPG</title>
   <style>
-    body { background:#0b0b0b; color:white; text-align:center; font-family:Arial; margin:0; padding:10px; }
-    h2 { color:#cdaa7d; margin:10px 0; }
-    canvas { border:2px solid #888; background:#000; image-rendering:pixelated; box-shadow:0 0 12px rgba(200,170,125,0.3); }
-    #ui { margin-top:12px; font-size:1.1em; max-width:640px; margin-left:auto; margin-right:auto; }
-    #ui span { font-weight:bold; color:#ffd700; }
-    #status { margin:10px 0; padding:8px; background:#1a1a1a; border:1px solid #444; border-radius:6px; text-align:left; font-family:monospace; white-space:pre; min-height:80px; }
+    body {
+      background: #0b0b0b;
+      color: white;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+    }
+    h2 {
+      color: #cdaa7d;
+      margin: 10px 0;
+    }
+    canvas {
+      border: 2px solid #666;
+      background: #000;
+      image-rendering: pixelated;
+      display: block;
+      margin: 0 auto;
+      box-shadow: 0 0 15px rgba(139, 90, 43, 0.5);
+    }
+    #ui {
+      margin: 15px auto;
+      max-width: 640px;
+      font-size: 1.1em;
+    }
+    #ui span {
+      font-weight: bold;
+      color: #ffd700;
+    }
+    #status {
+      margin-top: 12px;
+      padding: 10px;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 6px;
+      text-align: left;
+      font-family: monospace;
+      white-space: pre-wrap;
+      min-height: 90px;
+    }
   </style>
 </head>
 <body>
@@ -27,15 +61,16 @@
     Gold: <span id="gold">25</span>
     &nbsp;&nbsp;|&nbsp;&nbsp;
     Floor: <span id="floor">1</span>
-    
-    <div id="status" style="margin-top:12px;">
+
+    <div id="status">
 Kontrol:
-• WASD / Panah = gerak (tahan tombol untuk terus bergerak)
-• Shift (tahan) = lari (gerak 2x lebih cepat)
+• WASD / Panah ↑↓←→ = gerak (tahan tombol untuk terus bergerak)
+• Shift (tahan) = lari cepat
 • Spasi = serang melee ke arah hadap
+• Klik kiri mouse = serang ke arah klik
 • F = tembak Magic Bolt (mana -20)
 
-Klik canvas dulu supaya keyboard aktif!
+Klik area game dulu supaya keyboard aktif!
     </div>
   </div>
 
