@@ -1,6 +1,7 @@
 // =====================================================
-// Endless Dungeon RPG - STABLE_v1.2
-// Directional + Mana + Magic Bolt + Balanced Monsters
+// Endless Dungeon RPG - STABLE_v1.3
+// Kontrol: WASD gerak, Klik Kiri Mouse = Serang melee (arah ke mouse)
+// Magic Bolt tetap F
 // =====================================================
 
 const canvas = document.getElementById("gameCanvas");
@@ -9,7 +10,7 @@ const TILE = 48;
 const MAP_SIZE = 40;
 let camera = { x: 0, y: 0 };
 let floor = 1;
-let gameState = "play"; // langsung play, bisa ubah ke "mainMenu" kalau mau
+let gameState = "play";
 
 // ================= PLAYER =================
 let player = {
@@ -27,22 +28,19 @@ let player = {
 
 let spells = [];
 
-// ================= MAP (simple random) =================
+// ================= MAP =================
 let map = Array.from({length: MAP_SIZE}, () => Array(MAP_SIZE).fill(0));
-
 for (let y = 0; y < MAP_SIZE; y++) {
   for (let x = 0; x < MAP_SIZE; x++) {
-    if (Math.random() < 0.14) map[y][x] = 1; // wall
+    if (Math.random() < 0.14) map[y][x] = 1;
   }
 }
-// clear area spawn player
+// clear spawn area
 for (let dy = -3; dy <= 3; dy++) {
   for (let dx = -3; dx <= 3; dx++) {
     let tx = player.x + dx;
     let ty = player.y + dy;
-    if (tx >= 0 && tx < MAP_SIZE && ty >= 0 && ty < MAP_SIZE) {
-      map[ty][tx] = 0;
-    }
+    if (tx >= 0 && tx < MAP_SIZE && ty >= 0 && ty < MAP_SIZE) map[ty][tx] = 0;
   }
 }
 
@@ -59,21 +57,18 @@ function spawnEnemies(count) {
 
     let roll = Math.random();
     let enemy;
-
-    if (roll < 0.50) {          // Slime - lemah & cepat
+    if (roll < 0.50) {
       enemy = { type: "slime", hp: 22 + floor*4, maxHp: 22 + floor*4, atk: 5 + floor*0.8, color: "#44ff88", speed: 0.45 };
-    } else if (roll < 0.85) {   // Skeleton - sedang
+    } else if (roll < 0.85) {
       enemy = { type: "skeleton", hp: 38 + floor*6, maxHp: 38 + floor*6, atk: 9 + floor*1.2, color: "#dddddd", speed: 0.28 };
-    } else {                    // Ogre - kuat, lambat, jarang
+    } else {
       enemy = { type: "ogre", hp: 75 + floor*12, maxHp: 75 + floor*12, atk: 16 + floor*2, color: "#8B4513", speed: 0.18 };
     }
-
     enemy.x = ex;
     enemy.y = ey;
     enemies.push(enemy);
   }
 }
-
 spawnEnemies(5 + floor * 2);
 
 // ================= HELPER =================
@@ -107,11 +102,26 @@ function castMagic() {
   }
 }
 
-function playerAttack() {
+function playerAttack(targetX, targetY) {
   if (player.attackCD > 0) return;
+
+  // Hitung arah dari player ke target (klik mouse)
+  let dx = targetX - player.x;
+  let dy = targetY - player.y;
+
+  // Normalisasi ke arah tile terdekat (1 langkah)
+  if (Math.abs(dx) > Math.abs(dy)) {
+    player.dir.x = Math.sign(dx);
+    player.dir.y = 0;
+  } else {
+    player.dir.x = 0;
+    player.dir.y = Math.sign(dy);
+  }
+
   let tx = player.x + player.dir.x;
   let ty = player.y + player.dir.y;
   let target = enemyAt(tx, ty);
+
   if (target) {
     let dmg = player.atk;
     target.hp -= dmg;
@@ -133,7 +143,7 @@ function enemyAI() {
     if (dist <= 1) {
       player.hp -= e.atk;
       if (player.hp <= 0) {
-        alert("Kamu mati! Refresh untuk mulai lagi.");
+        alert("Kamu mati! Refresh halaman untuk mulai lagi.");
         location.reload();
       }
     } else if (dist < 10) {
@@ -150,14 +160,13 @@ function enemyAI() {
   });
 }
 
-// ================= DRAW =================
-function drawMap() {
+// ================= DRAW (sama seperti sebelumnya) =================
+function drawMap() { /* ... kode drawMap sama ... */ 
   for (let y = 0; y < MAP_SIZE; y++) {
     for (let x = 0; x < MAP_SIZE; x++) {
       let px = x * TILE - camera.x;
       let py = y * TILE - camera.y;
       if (px + TILE < 0 || px > canvas.width || py + TILE < 0 || py > canvas.height) continue;
-
       ctx.fillStyle = map[y][x] === 1 ? "#3a3a3a" : "#1c1c1c";
       ctx.fillRect(px, py, TILE, TILE);
     }
@@ -175,7 +184,6 @@ function drawPlayer() {
   ctx.arc(px, py - 24, 10, 0, Math.PI*2);
   ctx.fill();
 
-  // arah
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 5;
   ctx.beginPath();
@@ -240,7 +248,7 @@ function drawSpells() {
     let target = enemyAt(tx, ty);
 
     if (target) {
-      target.hp -= 20; // magic damage
+      target.hp -= 20;
       if (target.hp <= 0) {
         player.gold += Math.floor(Math.random() * 18) + 10;
         enemies = enemies.filter(en => en !== target);
@@ -253,6 +261,8 @@ function drawSpells() {
 }
 
 // ================= INPUT =================
+
+// Keyboard untuk gerak
 window.addEventListener("keydown", e => {
   if (gameState !== "play") return;
 
@@ -260,23 +270,61 @@ window.addEventListener("keydown", e => {
   let nx = player.x;
   let ny = player.y;
 
-  if (["w", "ArrowUp"].includes(e.key))    { ny--; player.dir = {x:0,y:-1}; moved=true; }
-  if (["s", "ArrowDown"].includes(e.key))  { ny++; player.dir = {x:0,y:1};  moved=true; }
-  if (["a", "ArrowLeft"].includes(e.key))  { nx--; player.dir = {x:-1,y:0}; moved=true; }
-  if (["d", "ArrowRight"].includes(e.key)) { nx++; player.dir = {x:1,y:0};  moved=true; }
+  if (["w", "W", "ArrowUp"].includes(e.key))    { ny--; player.dir = {x:0,y:-1}; moved=true; }
+  if (["s", "S", "ArrowDown"].includes(e.key))  { ny++; player.dir = {x:0,y:1};  moved=true; }
+  if (["a", "A", "ArrowLeft"].includes(e.key))  { nx--; player.dir = {x:-1,y:0}; moved=true; }
+  if (["d", "D", "ArrowRight"].includes(e.key)) { nx++; player.dir = {x:1,y:0};  moved=true; }
 
   if (moved && !blocked(nx, ny)) {
     player.x = nx;
     player.y = ny;
   }
 
-  if (e.key === " ") playerAttack();
   if (e.key.toLowerCase() === "f") castMagic();
+});
+
+// Mouse untuk serang
+canvas.addEventListener("mousedown", e => {
+  if (gameState !== "play" || e.button !== 0) return; // hanya klik kiri
+
+  // Hitung posisi klik relatif terhadap canvas
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+  // Konversi ke koordinat world (tile)
+  const worldX = Math.floor((mouseX + camera.x) / TILE);
+  const worldY = Math.floor((mouseY + camera.y) / TILE);
+
+  playerAttack(worldX, worldY);
+});
+
+// Optional: update arah karakter saat mouse gerak (biar lebih smooth aim)
+canvas.addEventListener("mousemove", e => {
+  if (gameState !== "play") return;
+
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+  const worldX = Math.floor((mouseX + camera.x) / TILE);
+  const worldY = Math.floor((mouseY + camera.y) / TILE);
+
+  let dx = worldX - player.x;
+  let dy = worldY - player.y;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    player.dir.x = Math.sign(dx);
+    player.dir.y = 0;
+  } else if (dy !== 0) {
+    player.dir.x = 0;
+    player.dir.y = Math.sign(dy);
+  }
 });
 
 // ================= GAME LOOP =================
 function loop() {
-  if (player.hp <= 0) return; // stop kalau mati
+  if (player.hp <= 0) return;
 
   if (player.attackCD > 0) player.attackCD--;
   player.mana = Math.min(player.maxMana, player.mana + 0.07);
@@ -290,7 +338,6 @@ function loop() {
   drawSpells();
   drawPlayer();
 
-  // update UI
   document.getElementById("hp").innerText   = Math.floor(player.hp);
   document.getElementById("mana").innerText = Math.floor(player.mana);
   document.getElementById("gold").innerText = player.gold;
