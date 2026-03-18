@@ -1,28 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Endless Dungeon RPG</title>
-
-<style>
-body{background:#0b0b0b;color:white;text-align:center;font-family:Arial;}
-canvas{border:2px solid #888;background:#000;}
-#ui{margin-top:8px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Endless Dungeon RPG - Sir Karat</title>
+  <style>
+    body {
+      background: #0b0b0b;
+      color: #e0e0e0;
+      text-align: center;
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #cdaa7d;
+      margin-bottom: 10px;
+      text-shadow: 0 0 8px #8b5a2b;
+    }
+    canvas {
+      border: 3px solid #555;
+      background: #111;
+      image-rendering: pixelated;
+      box-shadow: 0 0 15px rgba(139, 90, 43, 0.4);
+    }
+    #ui {
+      margin: 15px auto;
+      max-width: 640px;
+      font-size: 1.1em;
+      background: #1a1a1a;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #444;
+    }
+    #status {
+      margin: 10px 0;
+      padding: 10px;
+      background: #222;
+      border-left: 4px solid #8b5a2b;
+      text-align: left;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+    }
+    button {
+      background: #3a2a1a;
+      color: #e0c080;
+      border: 1px solid #8b5a2b;
+      padding: 8px 16px;
+      margin: 4px;
+      font-size: 1em;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #5a3a1a;
+      color: #ffd700;
+    }
+    .label { color: #aaa; }
+  </style>
 </head>
-
 <body>
 
-<h2>Endless Dungeon RPG</h2>
-<canvas id="gameCanvas" width="640" height="640"></canvas>
+  <h2>Endless Dungeon RPG – Sir Karat si Knight Usang</h2>
 
-<div id="ui">
-HP: <span id="hp"></span>
-HP: <span id="hp">100</span> | Mana: <span id="mana">50</span> | Gold: $<span id="gold">25</span> | Floor: <span id="floor">1</span>
-&nbsp;&nbsp;Gold: <span id="gold"></span>
-&nbsp;&nbsp;Floor: <span id="floor"></span>
-</div>
+  <canvas id="gameCanvas" width="640" height="640"></canvas>
 
-<script src="game.js"></script>
+  <div id="ui">
+    <div>
+      <span class="label">HP:</span> <span id="hp">85</span> / 85
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <span class="label">Gold:</span> $<span id="gold">15</span>
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <span class="label">Floor:</span> <span id="floor">1</span>
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <span class="label">Level:</span> <span id="level">1</span>
+    </div>
+
+    <div id="status">
+HP: 85/85  
+Pedang: Pedang Berkarat (dmg ~7–13)  
+Defense: ~12 (karatan semua)  
+Inventory: Potion Murah (heal +15)  
+    </div>
+
+    <div style="margin-top: 12px;">
+      <button onclick="playerAction('moveUp')">↑ Atas</button>
+      <button onclick="playerAction('moveLeft')">← Kiri</button>
+      <button onclick="playerAction('moveDown')">↓ Bawah</button>
+      <button onclick="playerAction('moveRight')">→ Kanan</button>
+      &nbsp;&nbsp;
+      <button onclick="playerAction('attack')">Serang ⚔️</button>
+      <button onclick="playerAction('heal')">Minum Potion 🧪</button>
+    </div>
+  </div>
+
+  <script src="knight.js"></script>
+  <script src="game.js"></script>
+
 </body>
 </html>
