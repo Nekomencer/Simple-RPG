@@ -1,27 +1,1504 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Endless Dungeon RPG</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRYPTS OF ETERNITY — Roguelike</title>
 <style>
-body{background:#0b0b0b;color:white;text-align:center;font-family:Arial;}
-canvas{border:2px solid #888;background:#000;}
-#ui{margin-top:8px}
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+  :root {
+    --bg:        #0a0a0f;
+    --panel:     #12121a;
+    --border:    #2a2a3a;
+    --gold:      #f5c842;
+    --red:       #e63946;
+    --green:     #52b788;
+    --blue:      #4cc9f0;
+    --purple:    #9b5de5;
+    --orange:    #fb8500;
+    --white:     #e8e8f0;
+    --dim:       #6b6b80;
+    --font-main: 'Press Start 2P', monospace;
+    --font-log:  'VT323', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; }
+
+  body {
+    background: var(--bg); color: var(--white);
+    font-family: var(--font-main); font-size: 10px;
+    display: flex; flex-direction: column; align-items: stretch;
+    height: 100vh; overflow: hidden; user-select: none;
+  }
+
+  /* TITLE */
+  #title-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100; gap: 24px;
+  }
+  #title-screen h1 {
+    font-size: 22px; color: var(--gold);
+    text-shadow: 0 0 20px #f5c84288;
+    animation: glow 2s ease-in-out infinite alternate;
+    text-align: center; line-height: 1.6;
+  }
+  #title-screen p { color: var(--dim); font-size: 8px; line-height: 2; text-align: center; }
+  #start-btn {
+    padding: 14px 28px; background: none;
+    border: 2px solid var(--gold); color: var(--gold);
+    font-family: var(--font-main); font-size: 10px;
+    cursor: pointer; animation: blink 1.2s step-end infinite;
+  }
+  #start-btn:hover { background: #f5c84222; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes glow  { from { text-shadow: 0 0 10px #f5c84266; } to { text-shadow: 0 0 30px #f5c842cc; } }
+
+  /* GAME LAYOUT */
+  #game-container { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: stretch; }
+  #game-container.active { display: flex; }
+
+  #top-bar {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px; border-bottom: 1px solid var(--border);
+    background: var(--panel); flex-shrink: 0;
+  }
+  #top-bar .logo { color: var(--gold); font-size: 9px; }
+  #floor-info    { color: var(--dim); font-size: 8px; }
+
+  #main-area { display: flex; width: 100%; flex: 1; overflow: hidden; }
+
+  /* LEFT PANEL */
+  #left-panel {
+    width: 180px; flex-shrink: 0; background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 10px; gap: 10px; overflow-y: auto;
+  }
+  .panel-section { display: flex; flex-direction: column; gap: 5px; }
+  .panel-title {
+    font-size: 7px; color: var(--dim); border-bottom: 1px solid var(--border);
+    padding-bottom: 3px; margin-bottom: 2px; letter-spacing: 2px;
+  }
+  .stat-bar-row { display: flex; flex-direction: column; gap: 3px; }
+  .stat-label { display: flex; justify-content: space-between; font-size: 7px; }
+  .stat-label .val { color: var(--white); }
+  .bar-track { height: 8px; background: #1a1a24; border: 1px solid var(--border); }
+  .bar-fill  { height: 100%; transition: width 0.2s; }
+  .bar-hp    { background: var(--red); }
+  .bar-mana  { background: var(--blue); }
+  .bar-exp   { background: var(--purple); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .stat-cell { background: #1a1a24; border: 1px solid var(--border); padding: 4px; display: flex; flex-direction: column; gap: 1px; }
+  .stat-cell .lbl { font-size: 6px; color: var(--dim); }
+  .stat-cell .val { font-size: 8px; color: var(--white); }
+
+  .skill-slot {
+    display: flex; align-items: center; gap: 5px;
+    background: #1a1a24; border: 1px solid var(--border); padding: 4px 6px;
+  }
+  .skill-slot.empty { opacity: 0.3; }
+  .skill-key { width: 16px; height: 16px; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 8px; flex-shrink: 0; }
+  .skill-info { flex: 1; overflow: hidden; }
+  .skill-name { font-size: 6px; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .skill-cost { font-size: 5px; color: var(--blue); }
+
+  .equip-slot { display: flex; align-items: center; gap: 6px; background: #1a1a24; border: 1px solid var(--border); padding: 5px 6px; }
+  .equip-icon { font-size: 14px; }
+  .equip-info { flex: 1; }
+  .equip-lbl  { font-size: 5px; color: var(--dim); }
+  .equip-name { font-size: 6px; color: var(--white); }
+  .equip-stat { font-size: 5px; color: var(--green); }
+
+  /* MAP */
+  #map-area { flex: 1; position: relative; background: #000; overflow: hidden; }
+  #map-canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+  /* RIGHT PANEL */
+  #right-panel { width: 220px; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  #log-title   { padding: 6px 8px; font-size: 7px; color: var(--dim); border-bottom: 1px solid var(--border); letter-spacing: 2px; }
+  #log-area    { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column-reverse; gap: 2px; }
+  #log-area::-webkit-scrollbar { width: 4px; }
+  #log-area::-webkit-scrollbar-track { background: var(--panel); }
+  #log-area::-webkit-scrollbar-thumb { background: var(--border); }
+  .log-entry  { font-family: var(--font-log); font-size: 15px; line-height: 1.3; padding: 1px 2px; color: var(--white); }
+  .log-entry.dmg   { color: var(--red); }
+  .log-entry.heal  { color: var(--green); }
+  .log-entry.gold  { color: var(--gold); }
+  .log-entry.info  { color: var(--blue); }
+  .log-entry.skill { color: var(--purple); }
+  .log-entry.loot  { color: var(--orange); }
+  .log-entry.level { color: var(--gold); }
+  .log-entry.warn  { color: var(--orange); }
+  .log-entry.dim   { color: var(--dim); }
+
+  /* BOTTOM BAR */
+  #bottom-bar {
+    width: 100%; background: var(--panel); border-top: 1px solid var(--border);
+    padding: 5px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  #controls-hint { font-size: 6px; color: var(--dim); letter-spacing: 1px; }
+  #gold-display  { font-size: 9px; color: var(--gold); }
+
+  /* OVERLAYS */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .overlay.active { display: flex; }
+  .overlay-box { background: var(--panel); border: 2px solid var(--border); padding: 20px; max-width: 520px; width: 90%; max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .overlay-title { font-size: 12px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .overlay-close { font-size: 7px; color: var(--dim); text-align: right; }
+
+  /* INVENTORY */
+  #inv-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; }
+  .inv-cell { aspect-ratio:1; background:#1a1a24; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; position:relative; transition:border-color 0.1s; }
+  .inv-cell:hover  { border-color: var(--gold); }
+  .inv-cell.selected { border-color: var(--gold); background: #2a2a1a; }
+  .inv-cell.empty  { cursor:default; opacity:0.3; }
+  .rarity-common   { border-color: #555; }
+  .rarity-rare     { border-color: var(--blue); }
+  .rarity-epic     { border-color: var(--purple); }
+
+  #item-detail { background:#1a1a24; border:1px solid var(--border); padding:10px; display:none; flex-direction:column; gap:6px; }
+  #item-detail.active   { display:flex; }
+  #item-detail .item-name { font-size:9px; color:var(--gold); }
+  #item-detail .item-type { font-size:7px; color:var(--dim); }
+  #item-detail .item-stat { font-size:7px; color:var(--green); }
+  #item-detail .item-desc { font-family:var(--font-log); font-size:14px; color:var(--white); line-height:1.8; }
+  .item-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .item-btn { padding:6px 10px; border:1px solid var(--border); background:none; color:var(--white); font-family:var(--font-main); font-size:7px; cursor:pointer; transition:border-color 0.1s; }
+  .item-btn:hover       { border-color:var(--gold); background:#2a2a1a; }
+  .item-btn.danger      { border-color:var(--red); color:var(--red); }
+  .item-btn.danger:hover{ background:#2a1a1a; }
+
+  /* MERCHANT */
+  .merchant-grid { display:flex; flex-direction:column; gap:8px; }
+  .merchant-item { display:flex; align-items:center; gap:10px; background:#1a1a24; border:1px solid var(--border); padding:8px 10px; cursor:pointer; transition:border-color 0.1s; }
+  .merchant-item:hover  { border-color:var(--gold); }
+  .merchant-icon  { font-size:20px; }
+  .merchant-info  { flex:1; display:flex; flex-direction:column; gap:2px; }
+  .merchant-name  { font-size:8px; color:var(--white); }
+  .merchant-stat  { font-size:6px; color:var(--green); }
+  .merchant-price { font-size:8px; color:var(--gold); }
+  .merchant-cant  { opacity:0.4; cursor:not-allowed; }
+
+  /* GAME OVER */
+  #game-over-screen { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; z-index:200; flex-direction:column; gap:20px; }
+  #game-over-screen.active { display:flex; }
+  #game-over-screen h2 { font-size:20px; color:var(--red); text-shadow:0 0 20px #e6394688; }
+  #game-over-screen .stats { font-size:8px; color:var(--dim); line-height:2.5; text-align:center; }
+  #restart-btn { padding:12px 24px; border:2px solid var(--green); color:var(--green); background:none; font-family:var(--font-main); font-size:9px; cursor:pointer; }
+  #restart-btn:hover { background:#1a2a1a; }
+
+  /* FLASH */
+  #flash { position:fixed; inset:0; background:var(--red); opacity:0; pointer-events:none; z-index:400; transition:opacity 0.1s; }
+  #flash.active { opacity:0.15; }
+
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:var(--panel); }
+  ::-webkit-scrollbar-thumb { background:var(--border); }
 </style>
 </head>
-
 <body>
 
-<h2>Endless Dungeon RPG</h2>
-<canvas id="gameCanvas" width="640" height="640"></canvas>
-
-<div id="ui">
-HP: <span id="hp"></span>
-&nbsp;&nbsp;Gold: <span id="gold"></span>
-&nbsp;&nbsp;Floor: <span id="floor"></span>
+<div id="title-screen">
+  <h1>⚔ CRYPTS<br>OF ETERNITY</h1>
+  <p>WASD/ARROWS · MOVE &nbsp;|&nbsp; SPACE · ATTACK<br>
+     1/2/3 · SKILLS &nbsp;|&nbsp; I · INVENTORY &nbsp;|&nbsp; E · INTERACT</p>
+  <button id="start-btn">▶ ENTER THE CRYPT</button>
 </div>
 
-<script src="game.js"></script>
+<div id="game-container">
+  <div id="top-bar">
+    <span class="logo">⚔ CRYPTS OF ETERNITY</span>
+    <span id="floor-info">FLOOR 1</span>
+  </div>
+  <div id="main-area">
+    <div id="left-panel">
+      <div class="panel-section">
+        <div class="panel-title">VITALS</div>
+        <div class="stat-bar-row">
+          <div class="stat-label"><span>HP</span><span class="val" id="hp-label">20/20</span></div>
+          <div class="bar-track"><div class="bar-fill bar-hp" id="hp-bar" style="width:100%"></div></div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-label"><span>MP</span><span class="val" id="mp-label">30/30</span></div>
+          <div class="bar-track"><div class="bar-fill bar-mana" id="mp-bar" style="width:100%"></div></div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-label"><span>EXP</span><span class="val" id="exp-label">0/100</span></div>
+          <div class="bar-track"><div class="bar-fill bar-exp" id="exp-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title">STATS</div>
+        <div class="stat-grid">
+          <div class="stat-cell"><div class="lbl">LVL</div><div class="val" id="stat-lvl">1</div></div>
+          <div class="stat-cell"><div class="lbl">ATK</div><div class="val" id="stat-atk">5</div></div>
+          <div class="stat-cell"><div class="lbl">DEF</div><div class="val" id="stat-def">0</div></div>
+          <div class="stat-cell"><div class="lbl">SPD</div><div class="val">1</div></div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title">SKILLS</div>
+        <div id="skill-slots"></div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title">EQUIPMENT</div>
+        <div id="equip-slots"></div>
+      </div>
+    </div>
+
+    <div id="map-area"><canvas id="map-canvas"></canvas></div>
+
+    <div id="right-panel">
+      <div id="log-title">BATTLE LOG</div>
+      <div id="log-area"></div>
+    </div>
+  </div>
+  <div id="bottom-bar">
+    <span id="controls-hint">MOVE:WASD/ARROWS · ATK:SPACE · SKILL:1/2/3 · INV:I · USE:E</span>
+    <span id="gold-display">💰 0 GOLD</span>
+  </div>
+</div>
+
+<div class="overlay" id="inv-overlay">
+  <div class="overlay-box">
+    <div class="overlay-title">⚔ INVENTORY</div>
+    <div id="inv-grid"></div>
+    <div id="item-detail"></div>
+    <div class="overlay-close">[ I ] TO CLOSE</div>
+  </div>
+</div>
+
+<div class="overlay" id="merchant-overlay">
+  <div class="overlay-box">
+    <div class="overlay-title">🏪 MERCHANT</div>
+    <div id="merchant-grid" class="merchant-grid"></div>
+    <div class="overlay-close">[ E ] TO CLOSE</div>
+  </div>
+</div>
+
+<div id="game-over-screen">
+  <h2>☠ YOU DIED</h2>
+  <div class="stats" id="death-stats"></div>
+  <button id="restart-btn">▶ TRY AGAIN</button>
+</div>
+
+<div id="flash"></div>
+
+<script>
+'use strict';
+// ============================================================
+//  CRYPTS OF ETERNITY — v2 Upgraded Engine
+//  Improvements: BFS-validated connected map, pixel-art tile
+//  renderer, camera follow system, fog of war with LOS.
+// ============================================================
+
+// ── GLOBAL CONSTANTS ─────────────────────────────────────────
+const TS      = 32;    // tile pixel size
+const COLS    = 42;    // wider world map
+const ROWS    = 30;    // taller world map
+const INV_MAX = 20;
+const SKILL_MAX = 3;
+const FOG_RADIUS = 6; // tiles visible around player
+
+// Tile IDs
+const T = { WALL:0, FLOOR:1, STAIRS:3 };
+
+// ── COLOUR PALETTE ────────────────────────────────────────────
+const PAL = {
+  // Floors
+  floorA:'#19172a', floorB:'#1c1a2d', floorLine:'#23213a',
+  // Walls
+  wallDark:'#0c0c14', wallFace:'#131120', wallLit:'#272444', wallMortar:'#1a182c',
+  // Stairs
+  stairBg:'#112233', stairGlow:'rgba(76,201,240,0.18)', stairColor:'#4cc9f0',
+  // Fog
+  fogDark:'rgba(0,0,0,0.65)',
+  // Entities
+  playerRobe:'#2e1a5e', playerSkin:'#d4a870', playerHat:'#f5c842', playerStaff:'#b89030',
+  playerGem:'#60f0ff', playerGlow:'rgba(245,200,66,0.22)',
+  goblin:'#52b788', orc:'#e07820', skeleton:'#c0c0d8',
+  troll:'#9b5de5', demon:'#e63946',
+  hpHigh:'#e63946', hpLow:'#ff7722',
+  chestWood:'#6b4a10', chestLid:'#c89a30', chestLock:'#c8a020',
+  chestOpen:'#3a2a08', merchantRobe:'#1e3a50', merchantSkin:'#c8a870',
+  merchantHat:'#4cc9f0', merchantGold:'#f5c842',
+};
+
+// ── SKILL DEFINITIONS ─────────────────────────────────────────
+const SKILL_DEFS = {
+  fireball:      {id:'fireball',      name:'Fireball',    icon:'🔥',manaCost:15,range:4,aoe:false,dmgMul:2.2,desc:'Hurl fireball at enemy within 4 tiles.'},
+  icebolt:       {id:'icebolt',       name:'Ice Bolt',    icon:'❄', manaCost:12,range:3,aoe:false,dmgMul:1.8,desc:'Freeze an enemy, moderate damage.'},
+  thunderstrike: {id:'thunderstrike', name:'Thunder',     icon:'⚡',manaCost:20,range:2,aoe:true, dmgMul:1.5,desc:'Lightning hits all enemies in range.'},
+  shadowstep:    {id:'shadowstep',    name:'Shadow Step', icon:'🌑',manaCost:18,range:5,aoe:false,dmgMul:0,  desc:'Teleport to a random floor tile.'},
+  vampiricblow:  {id:'vampiricblow',  name:'Vampiric',    icon:'🩸',manaCost:22,range:1,aoe:false,dmgMul:1.6,desc:'Strike enemy, heal 50% of damage.'},
+  spiritwave:    {id:'spiritwave',    name:'Spirit Wave', icon:'🌊',manaCost:25,range:3,aoe:true, dmgMul:2.0,desc:'Push spirit energy forward.'},
+};
+
+// ── ITEMS ─────────────────────────────────────────────────────
+const mkW = (n,i,a,f) => ({type:'weapon',name:n,icon:i,atk:a,floor:f,baseVal:a*10});
+const mkA = (n,i,d,h,f) => ({type:'armor', name:n,icon:i,def:d,hp:h||0,floor:f,baseVal:(d+h/5)*10});
+const mkP = (n,i,h,m,f) => ({type:'potion',name:n,icon:i,hp:h||0,mp:m||0,floor:f,baseVal:25});
+const ITEM_POOL = [
+  mkW('Rusty Dagger','🗡',3,1),mkW('Short Sword','⚔',6,1),mkW('Long Sword','⚔',10,2),
+  mkW('Battle Axe','🪓',14,3),mkW('War Hammer','🔨',18,4),mkW('Flame Blade','🔥',24,5),mkW('Soul Reaper','💀',32,6),
+  mkA('Leather Vest','🥋',2,10,1),mkA('Chain Mail','🛡',4,20,2),mkA('Steel Plate','🛡',7,35,3),
+  mkA('Shadow Cloak','🌑',5,50,4),mkA('Dragon Scale','🐉',12,70,5),
+  mkP('Health Potion','🧪',30,0,1),mkP('Mana Potion','💧',0,25,1),mkP('Full Potion','⚗',50,40,3),
+];
+const SKILL_BOOKS = [
+  {id:'bk_fire',   skill:'fireball',      name:'Tome of Fire',    icon:'📕',price:80},
+  {id:'bk_ice',    skill:'icebolt',       name:'Tome of Ice',     icon:'📘',price:70},
+  {id:'bk_thunder',skill:'thunderstrike', name:'Tome of Thunder', icon:'📙',price:100},
+  {id:'bk_shadow', skill:'shadowstep',    name:'Tome of Shadow',  icon:'📓',price:90},
+  {id:'bk_vamp',   skill:'vampiricblow',  name:'Tome of Blood',   icon:'📒',price:110},
+  {id:'bk_spirit', skill:'spiritwave',    name:'Tome of Spirit',  icon:'📔',price:120},
+];
+
+// ── ENEMIES ───────────────────────────────────────────────────
+// Base stats are gentle — scaling is applied progressively per floor in spawnFloor().
+const ENEMY_DEFS = {
+  goblin:  {type:'goblin',  name:'Goblin',  col:PAL.goblin,  hp:8,  atk:2, def:0,exp:8, gold:[2,5],  floor:1},
+  orc:     {type:'orc',     name:'Orc',     col:PAL.orc,     hp:16, atk:4, def:1,exp:18,gold:[5,10], floor:2},
+  skeleton:{type:'skeleton',name:'Skeleton',col:PAL.skeleton,hp:12, atk:3, def:1,exp:14,gold:[3,8],  floor:2},
+  troll:   {type:'troll',   name:'Troll',   col:PAL.troll,   hp:30, atk:6, def:2,exp:30,gold:[10,18],floor:3},
+  demon:   {type:'demon',   name:'Demon',   col:PAL.demon,   hp:50, atk:10,def:3,exp:50,gold:[18,30],floor:5},
+};
+
+// ── UTILITIES ─────────────────────────────────────────────────
+const rng   = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const clamp = (v,a,b) => Math.min(b,Math.max(a,v));
+const dist  = (a,b) => Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+
+// ============================================================
+//  Logger
+// ============================================================
+const Logger = {
+  add(msg,cls='') {
+    const d=document.createElement('div');
+    d.className='log-entry '+cls; d.textContent=msg;
+    const a=document.getElementById('log-area');
+    a.prepend(d);
+    while(a.children.length>80) a.removeChild(a.lastChild);
+  },
+  clear(){ document.getElementById('log-area').innerHTML=''; },
+};
+
+// ============================================================
+//  Player
+// ============================================================
+const Player = {
+  x:2,y:2,hp:30,maxHp:30,mp:30,maxMp:30,atk:5,def:0,
+  level:1,exp:0,expNext:100,gold:0,
+  inventory:[],equipment:{weapon:null,armor:null},
+  skills:[null,null,null],knownSkills:[],
+
+  get totalAtk()   { return this.atk  + (this.equipment.weapon?.atk||0); },
+  get totalDef()   { return this.def  + (this.equipment.armor?.def||0);  },
+  get totalMaxHp() { return this.maxHp + (this.equipment.armor?.hp||0);  },
+
+  heal(a)       { this.hp=clamp(this.hp+a,0,this.totalMaxHp); },
+  restoreMp(a)  { this.mp=clamp(this.mp+a,0,this.maxMp); },
+  takeDamage(d) { const v=Math.max(1,d-this.totalDef); this.hp-=v; return v; },
+  gainExp(a)    { this.exp+=a; if(this.exp>=this.expNext) this.levelUp(); },
+  levelUp() {
+    this.exp-=this.expNext; this.level++;
+    this.expNext=Math.floor(this.expNext*1.4);
+    this.maxHp+=10; this.maxMp+=8; this.atk+=2; this.def+=1;
+    this.hp=this.totalMaxHp; this.mp=this.maxMp;
+    Logger.add(`⬆ Level Up! Now level ${this.level}!`,'level'); flashScreen();
+  },
+  gainGold(a)   { this.gold+=a; Logger.add(`+${a} gold`,'gold'); },
+  spendGold(a)  { this.gold-=a; },
+  addItem(item,rarity){ if(this.inventory.length>=INV_MAX) return false; this.inventory.push({item,rarity}); return true; },
+  removeItem(i) { this.inventory.splice(i,1); },
+  equipItem(i)  {
+    const {item}=this.inventory[i];
+    const slot=item.type==='weapon'?'weapon':item.type==='armor'?'armor':null;
+    if(!slot) return;
+    if(this.equipment[slot]) this.addItem(this.equipment[slot],'common');
+    this.equipment[slot]=item; this.removeItem(i);
+  },
+  useItem(i) {
+    const {item}=this.inventory[i];
+    if(item.type==='potion'){
+      this.heal(item.hp); this.restoreMp(item.mp);
+      if(item.hp) Logger.add(`Restored ${item.hp} HP`,'heal');
+      if(item.mp) Logger.add(`Restored ${item.mp} MP`,'info');
+      this.removeItem(i); return true;
+    }
+    if(item.type==='book'){
+      if(this.knownSkills.includes(item.skill)){ Logger.add('Already known!','warn'); return false; }
+      this.knownSkills.push(item.skill);
+      for(let s=0;s<SKILL_MAX;s++){ if(!this.skills[s]){ this.skills[s]=item.skill; break; } }
+      Logger.add(`Learned: ${SKILL_DEFS[item.skill].name}!`,'skill');
+      this.removeItem(i); return true;
+    }
+    return false;
+  },
+  learnSkill(sid){
+    if(this.knownSkills.includes(sid)) return false;
+    this.knownSkills.push(sid);
+    for(let s=0;s<SKILL_MAX;s++){ if(!this.skills[s]){ this.skills[s]=sid; break; } }
+    return true;
+  },
+  reset(){
+    Object.assign(this,{
+      x:2,y:2,hp:30,maxHp:30,mp:30,maxMp:30,atk:5,def:0,
+      level:1,exp:0,expNext:100,gold:0,inventory:[],
+      equipment:{weapon:null,armor:null},skills:[null,null,null],knownSkills:[]
+    });
+  }
+};
+
+// ============================================================
+//  MapGen — BSP + BFS connectivity guarantee
+// ============================================================
+const MapGen = {
+  tiles:[],   // [row][col] -> T.*
+  rooms:[],   // [{x,y,w,h,cx,cy}]
+
+  // ── Public API ────────────────────────────────────────────
+  generate(floor) {
+    // Attempt up to 15 times until we get a valid map with enough rooms
+    for(let attempt=0; attempt<15; attempt++) {
+      this.tiles = Array.from({length:ROWS}, ()=>new Uint8Array(COLS));
+      this.rooms = [];
+      this._bsp(1,1,COLS-2,ROWS-2, 5);
+      this._connectAllRooms();   // belt-and-suspenders: chain-link every room
+      this._bfsRepair();         // BFS flood from seed; carve tunnels to any isolated floor
+
+      if(this.rooms.length >= 4) break; // enough rooms — done
+    }
+    // Place stairs at last room centre (away from player spawn)
+    const last=this.rooms[this.rooms.length-1];
+    this.tiles[last.cy][last.cx] = T.STAIRS;
+    return { tiles:this.tiles, rooms:this.rooms };
+  },
+
+  // ── BSP recursive partitioning ───────────────────────────
+  // Recursively splits the map into leaf partitions, carves a room in
+  // each leaf, then connects sibling leaves with L-shaped tunnels.
+  _bsp(x,y,w,h,depth) {
+    if(depth===0 || w<9 || h<8) {
+      // Leaf — carve room
+      const rw=rng(4, Math.min(w-2,11));
+      const rh=rng(3, Math.min(h-2, 9));
+      const rx=x+rng(1, Math.max(1,w-rw-1));
+      const ry=y+rng(1, Math.max(1,h-rh-1));
+      const room={x:rx,y:ry,w:rw,h:rh, cx:rx+Math.floor(rw/2), cy:ry+Math.floor(rh/2)};
+      this.rooms.push(room);
+      for(let r=ry;r<ry+rh;r++)
+        for(let c=rx;c<rx+rw;c++)
+          this.tiles[r][c]=T.FLOOR;
+      return room;
+    }
+    const horiz = h>w ? true : w>h ? false : rng(0,1)===1;
+    let r1,r2;
+    if(horiz){
+      const split=rng(4,h-5);
+      r1=this._bsp(x,y,      w,split,  depth-1);
+      r2=this._bsp(x,y+split,w,h-split,depth-1);
+    } else {
+      const split=rng(4,w-5);
+      r1=this._bsp(x,      y,split,  h,depth-1);
+      r2=this._bsp(x+split,y,w-split,h,depth-1);
+    }
+    // Connect the two child rooms via L-tunnel through their centres
+    if(r1&&r2) this._tunnel(r1.cx,r1.cy,r2.cx,r2.cy);
+    return r1||r2;
+  },
+
+  // ── Chain-link all rooms in order (extra connectivity) ───
+  _connectAllRooms(){
+    for(let i=1;i<this.rooms.length;i++)
+      this._tunnel(this.rooms[i-1].cx,this.rooms[i-1].cy,this.rooms[i].cx,this.rooms[i].cy);
+  },
+
+  // ── BFS flood-fill connectivity repair ───────────────────
+  // 1. Start BFS from first room centre.
+  // 2. Collect all floor tiles reachable.
+  // 3. For any floor tile NOT reachable, carve a tunnel from
+  //    the seed to that tile so the map is fully connected.
+  _bfsRepair(){
+    if(!this.rooms.length) return;
+    const seed = this.rooms[0];
+    const visited = new Set();
+    const key = (x,y)=>`${x},${y}`;
+    const queue=[{x:seed.cx,y:seed.cy}];
+    visited.add(key(seed.cx,seed.cy));
+    const DIRS=[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+
+    while(queue.length){
+      const cur=queue.shift();
+      for(const d of DIRS){
+        const nx=cur.x+d.x, ny=cur.y+d.y;
+        const k=key(nx,ny);
+        if(!visited.has(k)&&nx>0&&ny>0&&nx<COLS-1&&ny<ROWS-1&&this.tiles[ny][nx]===T.FLOOR){
+          visited.add(k); queue.push({x:nx,y:ny});
+        }
+      }
+    }
+
+    // Any floor tile not in visited → carve path from seed to it
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(this.tiles[y][x]===T.FLOOR && !visited.has(key(x,y))){
+          this._tunnel(seed.cx,seed.cy,x,y);
+          // After carving, the newly laid floor becomes connected
+          // (the tunnel carves T.FLOOR all the way through, so BFS would
+          //  find it now — no need to re-run BFS here)
+        }
+      }
+    }
+  },
+
+  // ── L-shaped tunnel: go horizontal then vertical (or vice versa) ──
+  _tunnel(ax,ay,bx,by){
+    if(rng(0,1)===0){ this._carveH(ay,ax,bx); this._carveV(bx,ay,by); }
+    else             { this._carveV(ax,ay,by); this._carveH(by,ax,bx); }
+  },
+  _carveH(y,x1,x2){
+    const [a,b]=x1<=x2?[x1,x2]:[x2,x1];
+    for(let x=a;x<=b;x++) if(this._inMap(x,y)) this.tiles[y][x]=T.FLOOR;
+  },
+  _carveV(x,y1,y2){
+    const [a,b]=y1<=y2?[y1,y2]:[y2,y1];
+    for(let y=a;y<=b;y++) if(this._inMap(x,y)) this.tiles[y][x]=T.FLOOR;
+  },
+  _inMap(x,y){ return x>0&&y>0&&x<COLS-1&&y<ROWS-1; },
+
+  // ── Used by other modules ─────────────────────────────────
+  isWalkable(x,y){ return x>=0&&y>=0&&x<COLS&&y<ROWS&&this.tiles[y][x]!==T.WALL; },
+  randomFloorInRoom(rooms){
+    const r=rooms[rng(0,rooms.length-1)];
+    return {x:rng(r.x,r.x+r.w-1), y:rng(r.y,r.y+r.h-1)};
+  },
+};
+
+// ============================================================
+//  FogOfWar — per-tile visibility + exploration tracking
+// ============================================================
+const FogOfWar = {
+  // Uint8Arrays: 0=unseen, 1=active
+  visible:  [],   // currently lit
+  explored: [],   // ever seen
+
+  // Allocate fresh grids for a new floor
+  init(){
+    this.visible  = Array.from({length:ROWS},()=>new Uint8Array(COLS));
+    this.explored = Array.from({length:ROWS},()=>new Uint8Array(COLS));
+  },
+
+  // Recompute visible set from player position (px,py)
+  // Uses a radius circle + Bresenham LOS check per tile
+  update(px,py){
+    // Clear current visible
+    for(let y=0;y<ROWS;y++) this.visible[y].fill(0);
+    const r=FOG_RADIUS;
+    for(let ty=py-r;ty<=py+r;ty++){
+      for(let tx=px-r;tx<=px+r;tx++){
+        if(tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
+        // Circular radius check
+        const dx=tx-px, dy=ty-py;
+        if(dx*dx+dy*dy>r*r) continue;
+        // Bresenham LOS: walk from player to target tile
+        if(this._los(px,py,tx,ty)){
+          this.visible[ty][tx]=1;
+          this.explored[ty][tx]=1;
+        }
+      }
+    }
+    // Player's own tile always visible
+    this.visible[py][px]=1; this.explored[py][px]=1;
+  },
+
+  // Bresenham ray: returns true if no WALL blocks the path to (x1,y1)
+  // A wall tile itself is visible (we stop AFTER marking it), but
+  // tiles behind a wall are not.
+  _los(x0,y0,x1,y1){
+    let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+    let sx=x0<x1?1:-1, sy=y0<y1?1:-1;
+    let err=dx-dy, cx=x0, cy=y0;
+    while(cx!==x1||cy!==y1){
+      // Current step is a wall — stop (the wall tile at cx,cy
+      // itself will still be marked visible from the outer loop)
+      if(MapGen.tiles[cy]?.[cx]===T.WALL) return false;
+      const e2=2*err;
+      if(e2>-dy){ err-=dy; cx+=sx; }
+      if(e2< dx){ err+=dx; cy+=sy; }
+    }
+    return true;
+  },
+
+  isVisible(x,y)  { return !!(this.visible[y]?.[x]); },
+  isExplored(x,y) { return !!(this.explored[y]?.[x]); },
+};
+
+// ============================================================
+//  Camera — viewport that follows the player
+// ============================================================
+const Camera = {
+  // World-pixel offset of the viewport's top-left corner
+  x:0, y:0,
+  // Viewport size in pixels (= canvas size)
+  vw:0, vh:0,
+
+  // Called every frame — snaps camera to keep player centred
+  follow(px,py){
+    // Player world-pixel centre
+    const pwx=px*TS+TS/2, pwy=py*TS+TS/2;
+    // Desired top-left (player centred in viewport)
+    let cx=pwx-this.vw/2, cy=pwy-this.vh/2;
+    // Clamp: never scroll past map edges
+    this.x=clamp(cx,0,Math.max(0,COLS*TS-this.vw));
+    this.y=clamp(cy,0,Math.max(0,ROWS*TS-this.vh));
+  },
+
+  // Convert tile (tx,ty) → screen pixel top-left
+  toScreen(tx,ty){ return {sx:tx*TS-this.x, sy:ty*TS-this.y}; },
+
+  // Tile range visible on screen (with 1-tile safety buffer)
+  range(){
+    return {
+      x0:Math.max(0,Math.floor(this.x/TS)-1),
+      y0:Math.max(0,Math.floor(this.y/TS)-1),
+      x1:Math.min(COLS-1,Math.ceil((this.x+this.vw)/TS)+1),
+      y1:Math.min(ROWS-1,Math.ceil((this.y+this.vh)/TS)+1),
+    };
+  }
+};
+
+// ============================================================
+//  TilePainter — procedural pixel-art tile renderer
+//  Each tile type is drawn with canvas 2D primitives.
+//  Tiles are cached in offscreen <canvas> elements so they
+//  are only generated once per tile size.
+// ============================================================
+const TilePainter = {
+  _cache:{},
+
+  // Returns a cached offscreen canvas for key, created via drawFn if missing
+  _cached(key,W,H,drawFn){
+    if(!this._cache[key]){
+      const c=document.createElement('canvas'); c.width=W; c.height=H;
+      drawFn(c.getContext('2d'),W,H); this._cache[key]=c;
+    }
+    return this._cache[key];
+  },
+
+  clearCache(){ this._cache={}; },
+
+  // ── FLOOR ─────────────────────────────────────────────────
+  floor(ctx,sx,sy,W,H,alt){
+    const t=this._cached(`floor_${W}_${H}_${alt}`,W,H,(c,w,h)=>{
+      c.fillStyle=alt?PAL.floorB:PAL.floorA; c.fillRect(0,0,w,h);
+      // Stone grid lines
+      c.strokeStyle=PAL.floorLine; c.lineWidth=0.5;
+      c.strokeRect(0.5,0.5,w-1,h-1);
+      // Subtle diagonal crack
+      c.strokeStyle=alt?'#110f1e':'#131128'; c.lineWidth=0.6;
+      c.beginPath();
+      if(alt){ c.moveTo(w*0.15,h*0.55); c.lineTo(w*0.45,h*0.8); }
+      else   { c.moveTo(w*0.65,h*0.2);  c.lineTo(w*0.88,h*0.6); }
+      c.stroke();
+    });
+    ctx.drawImage(t,sx,sy);
+  },
+
+  // ── WALL ──────────────────────────────────────────────────
+  wall(ctx,sx,sy,W,H,hasFloorS){
+    const t=this._cached(`wall_${W}_${H}_${hasFloorS?1:0}`,W,H,(c,w,h)=>{
+      c.fillStyle=PAL.wallDark; c.fillRect(0,0,w,h);
+      // Brick rows
+      const bh=Math.max(5,Math.floor(h/3)), bw=Math.max(7,Math.floor(w/2));
+      c.fillStyle=PAL.wallFace;
+      // Row 1
+      for(let x=0;x<w;x+=bw) c.fillRect(x+1,1,bw-2,bh-1);
+      // Row 2 (offset by half)
+      for(let x=-bw/2;x<w;x+=bw) c.fillRect(x+1,bh+1,bw-2,bh-1);
+      // Mortar grid
+      c.strokeStyle=PAL.wallMortar; c.lineWidth=1;
+      c.strokeRect(0.5,0.5,w-1,h-1);
+      c.beginPath(); c.moveTo(0,bh); c.lineTo(w,bh); c.stroke();
+      // Front face lit edge (visible when floor is directly south)
+      if(hasFloorS){ c.fillStyle=PAL.wallLit; c.fillRect(0,0,w,3); }
+    });
+    ctx.drawImage(t,sx,sy);
+  },
+
+  // ── STAIRS ────────────────────────────────────────────────
+  stairs(ctx,sx,sy,W,H){
+    const t=this._cached(`stairs_${W}_${H}`,W,H,(c,w,h)=>{
+      c.fillStyle=PAL.stairBg; c.fillRect(0,0,w,h);
+      // Glow radial
+      const g=c.createRadialGradient(w/2,h/2,0,w/2,h/2,w*0.55);
+      g.addColorStop(0,PAL.stairGlow); g.addColorStop(1,'transparent');
+      c.fillStyle=g; c.fillRect(0,0,w,h);
+      // Steps
+      c.fillStyle=PAL.stairColor;
+      for(let i=0;i<3;i++){
+        const sw=w*(0.65-i*0.12), sh=Math.max(3,Math.floor(h*0.1));
+        c.fillRect((w-sw)/2, h*0.22+i*(sh+3), sw, sh);
+      }
+      // Down arrow
+      c.fillStyle=PAL.stairColor; c.font=`bold ${Math.floor(h*0.32)}px monospace`;
+      c.textAlign='center'; c.textBaseline='middle';
+      c.fillText('▼',w/2,h*0.74);
+    });
+    ctx.drawImage(t,sx,sy);
+  },
+
+  // ── CHEST ─────────────────────────────────────────────────
+  chest(ctx,sx,sy,W,H,opened){
+    // Draw floor first
+    this.floor(ctx,sx,sy,W,H,false);
+    const cw=Math.floor(W*0.68), ch=Math.floor(H*0.52);
+    const cx=sx+(W-cw)/2, cy=sy+(H-ch)/2+2;
+    if(!opened){
+      // Body
+      ctx.fillStyle=PAL.chestWood; ctx.fillRect(cx,cy,cw,ch);
+      // Lid
+      ctx.fillStyle=PAL.chestLid; ctx.fillRect(cx,cy,cw,Math.floor(ch*0.38));
+      // Sheen
+      ctx.fillStyle='rgba(255,230,100,0.18)'; ctx.fillRect(cx+2,cy+2,cw-4,4);
+      // Lock
+      ctx.fillStyle=PAL.chestLock; ctx.fillRect(sx+W/2-2,cy+Math.floor(ch*0.28),4,Math.floor(ch*0.28));
+    } else {
+      // Open chest
+      ctx.fillStyle=PAL.chestOpen; ctx.fillRect(cx,cy,cw,Math.floor(ch*0.55));
+      // Lid flipped up
+      ctx.fillStyle=PAL.chestWood; ctx.fillRect(cx,cy-Math.floor(ch*0.42),cw,Math.floor(ch*0.38));
+    }
+  },
+
+  // ── MERCHANT ──────────────────────────────────────────────
+  merchant(ctx,sx,sy,W,H){
+    this.floor(ctx,sx,sy,W,H,true);
+    const cx=sx+W/2, cy=sy+H*0.5;
+    // Robe
+    ctx.fillStyle=PAL.merchantRobe;
+    ctx.beginPath(); ctx.moveTo(cx-W*0.2,cy+H*0.36); ctx.lineTo(cx+W*0.2,cy+H*0.36);
+    ctx.lineTo(cx+W*0.17,cy-H*0.08); ctx.lineTo(cx-W*0.17,cy-H*0.08); ctx.fill();
+    // Head
+    ctx.fillStyle=PAL.merchantSkin;
+    ctx.beginPath(); ctx.ellipse(cx,cy-H*0.2,W*0.15,H*0.16,0,0,Math.PI*2); ctx.fill();
+    // Hood
+    ctx.fillStyle=PAL.merchantHat;
+    ctx.beginPath(); ctx.ellipse(cx,cy-H*0.24,W*0.17,H*0.1,0,Math.PI,Math.PI*2); ctx.fill();
+    // Gold coin
+    ctx.fillStyle=PAL.merchantGold; ctx.font=`bold ${Math.floor(H*0.2)}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('$',cx,sy+H*0.88);
+  },
+
+  // ── ENEMIES ───────────────────────────────────────────────
+  enemy(ctx,sx,sy,W,H,e){
+    const cx=sx+W/2, cy=sy+H*0.46, col=e.col;
+    switch(e.type){
+      case 'goblin':
+        // Rounded hunched body
+        ctx.fillStyle=col;
+        ctx.beginPath(); ctx.ellipse(cx,cy,W*0.2,H*0.26,0,0,Math.PI*2); ctx.fill();
+        // Pointy ears
+        ctx.beginPath(); ctx.moveTo(cx-7,cy-8); ctx.lineTo(cx-13,cy-17); ctx.lineTo(cx-3,cy-11); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(cx+7,cy-8); ctx.lineTo(cx+13,cy-17); ctx.lineTo(cx+3,cy-11); ctx.fill();
+        // Eyes
+        ctx.fillStyle='#ffdd00'; ctx.fillRect(cx-5,cy-7,3,3); ctx.fillRect(cx+2,cy-7,3,3);
+        break;
+
+      case 'orc':
+        // Wide stocky torso
+        ctx.fillStyle=col;
+        ctx.fillRect(cx-W*0.26,cy-H*0.28,W*0.52,H*0.56);
+        // Head
+        ctx.beginPath(); ctx.ellipse(cx,cy-H*0.27,W*0.2,H*0.18,0,0,Math.PI*2); ctx.fill();
+        // Tusks
+        ctx.fillStyle='#f0e0a0';
+        ctx.fillRect(cx-8,cy-H*0.1,3,7); ctx.fillRect(cx+5,cy-H*0.1,3,7);
+        break;
+
+      case 'skeleton':
+        // Skull
+        ctx.fillStyle=col;
+        ctx.beginPath(); ctx.ellipse(cx,cy-H*0.24,W*0.18,H*0.18,0,0,Math.PI*2); ctx.fill();
+        // Eye sockets
+        ctx.fillStyle='#111';
+        ctx.fillRect(cx-7,cy-H*0.3,4,4); ctx.fillRect(cx+3,cy-H*0.3,4,4);
+        // Rib cage arcs
+        ctx.strokeStyle=col; ctx.lineWidth=1.5;
+        for(let i=0;i<3;i++){
+          ctx.beginPath(); ctx.ellipse(cx,cy-H*0.02+i*5,W*0.18-i*2,3,0,0,Math.PI*2); ctx.stroke();
+        }
+        break;
+
+      case 'troll':
+        // Big hulking mass
+        ctx.fillStyle=col;
+        ctx.beginPath(); ctx.ellipse(cx,cy,W*0.35,H*0.4,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx,cy-H*0.3,W*0.24,H*0.21,0,0,Math.PI*2); ctx.fill();
+        // Angry eyes
+        ctx.fillStyle='#ff2200';
+        ctx.fillRect(cx-7,cy-H*0.34,4,4); ctx.fillRect(cx+3,cy-H*0.34,4,4);
+        break;
+
+      case 'demon':
+        // Body
+        ctx.fillStyle=col;
+        ctx.beginPath(); ctx.ellipse(cx,cy,W*0.22,H*0.32,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx,cy-H*0.28,W*0.16,H*0.16,0,0,Math.PI*2); ctx.fill();
+        // Wings
+        ctx.fillStyle=col+'99';
+        ctx.beginPath(); ctx.moveTo(cx,cy-H*0.1); ctx.lineTo(cx-W*0.5,cy-H*0.38); ctx.lineTo(cx-W*0.18,cy+H*0.12); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(cx,cy-H*0.1); ctx.lineTo(cx+W*0.5,cy-H*0.38); ctx.lineTo(cx+W*0.18,cy+H*0.12); ctx.fill();
+        // Eyes
+        ctx.fillStyle='#ffee00';
+        ctx.fillRect(cx-6,cy-H*0.31,4,4); ctx.fillRect(cx+2,cy-H*0.31,4,4);
+        break;
+    }
+  },
+
+  // ── PLAYER ────────────────────────────────────────────────
+  player(ctx,sx,sy,W,H){
+    const cx=sx+W/2, cy=sy+H*0.48;
+    // Ambient glow
+    const g=ctx.createRadialGradient(cx,cy,2,cx,cy,W);
+    g.addColorStop(0,PAL.playerGlow); g.addColorStop(1,'transparent');
+    ctx.fillStyle=g; ctx.fillRect(sx-W,sy-H,W*3,H*3);
+    // Robe
+    ctx.fillStyle=PAL.playerRobe;
+    ctx.beginPath();
+    ctx.moveTo(cx-W*0.2,cy+H*0.37); ctx.lineTo(cx+W*0.2,cy+H*0.37);
+    ctx.lineTo(cx+W*0.17,cy-H*0.08); ctx.lineTo(cx-W*0.17,cy-H*0.08); ctx.fill();
+    // Head
+    ctx.fillStyle=PAL.playerSkin;
+    ctx.beginPath(); ctx.ellipse(cx,cy-H*0.21,W*0.15,H*0.16,0,0,Math.PI*2); ctx.fill();
+    // Wizard hat
+    ctx.fillStyle=PAL.playerHat;
+    ctx.beginPath(); ctx.moveTo(cx-W*0.18,cy-H*0.16); ctx.lineTo(cx,cy-H*0.52); ctx.lineTo(cx+W*0.18,cy-H*0.16); ctx.fill();
+    // Hat band
+    ctx.fillStyle='#6040a0'; ctx.fillRect(cx-W*0.19,cy-H*0.2,W*0.38,3);
+    // Staff
+    ctx.strokeStyle=PAL.playerStaff; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx+W*0.22,cy-H*0.04); ctx.lineTo(cx+W*0.32,cy-H*0.5); ctx.stroke();
+    // Gem
+    ctx.fillStyle=PAL.playerGem;
+    ctx.beginPath(); ctx.arc(cx+W*0.32,cy-H*0.52,3,0,Math.PI*2); ctx.fill();
+    // Gem glow
+    const gg=ctx.createRadialGradient(cx+W*0.32,cy-H*0.52,0,cx+W*0.32,cy-H*0.52,8);
+    gg.addColorStop(0,'rgba(96,240,255,0.5)'); gg.addColorStop(1,'transparent');
+    ctx.fillStyle=gg; ctx.fillRect(cx+W*0.1,cy-H*0.65,W*0.45,H*0.3);
+  },
+};
+
+// ============================================================
+//  EntityManager
+// ============================================================
+const EntityManager = {
+  enemies:[],chests:[],merchant:null,
+
+  spawnFloor(floor,rooms){
+    this.enemies=[]; this.chests=[]; this.merchant=null;
+    // Enemy count: starts at 2 on floor 1, grows slowly, caps at 18
+    const numE=Math.min(2+Math.floor(floor*1.5),18), numC=rng(2,4);
+    const hasMerchant=floor===1||rng(0,2)===0;
+    const occupied=new Set(), key=(x,y)=>`${x},${y}`;
+    occupied.add(key(rooms[0].cx,rooms[0].cy));
+
+    const place=()=>{
+      for(let t=0;t<200;t++){
+        const p=MapGen.randomFloorInRoom(rooms);
+        const k=key(p.x,p.y);
+        if(!occupied.has(k)&&MapGen.tiles[p.y][p.x]===T.FLOOR){ occupied.add(k); return p; }
+      }
+      return null;
+    };
+
+    for(let i=0;i<numE;i++){
+      const pos=place(); if(!pos) continue;
+      const def=this._pick(floor);
+      // HP scales +10% per floor, ATK scales +8% per floor (was 15%/12%)
+      this.enemies.push({...def,id:i,x:pos.x,y:pos.y,
+        hp:  Math.floor(def.hp  *(1+floor*0.10)),
+        maxHp:Math.floor(def.hp *(1+floor*0.10)),
+        atk: Math.floor(def.atk *(1+floor*0.08)),
+        alive:true});
+    }
+    for(let i=0;i<numC;i++){ const p=place(); if(p) this.chests.push({x:p.x,y:p.y,opened:false}); }
+    if(hasMerchant){ const p=place(); if(p) this.merchant={x:p.x,y:p.y}; }
+
+    // Guarantee a health potion in the player's starting room on floor 1
+    if(floor===1){
+      Player.addItem({...mkP('Health Potion','🧪',30,0,1),'baseVal':25},'common');
+      Logger.add('You found a Health Potion to start!','heal');
+    }
+  },
+
+  _pick(floor){
+    const pool=Object.values(ENEMY_DEFS).filter(d=>d.floor<=floor);
+    return {...pool[rng(0,pool.length-1)]};
+  },
+  at(x,y){ return this.enemies.find(e=>e.alive&&e.x===x&&e.y===y)||null; },
+
+  moveEnemies(){
+    for(const e of this.enemies){
+      if(!e.alive) continue;
+      const d=dist(e,Player);
+      // Only chase if within sensing range and not already adjacent
+      if(d>9||d===1) continue;
+      const dx=Player.x-e.x, dy=Player.y-e.y;
+      // Prefer cardinal movement toward player
+      const moves=Math.abs(dx)>=Math.abs(dy)
+        ?[{x:Math.sign(dx),y:0},{x:0,y:Math.sign(dy)},{x:-Math.sign(dx),y:0}]
+        :[{x:0,y:Math.sign(dy)},{x:Math.sign(dx),y:0},{x:0,y:-Math.sign(dy)}];
+      for(const m of moves){
+        const nx=e.x+m.x,ny=e.y+m.y;
+        if(MapGen.isWalkable(nx,ny)&&!this.at(nx,ny)&&!(nx===Player.x&&ny===Player.y)){
+          e.x=nx;e.y=ny;break;
+        }
+      }
+    }
+  },
+
+  // Enemies only counter-attack when:
+  //   1. They are directly adjacent (dist === 1)  AND
+  //   2. They share the same row (y) OR same column (x) with the player
+  //      — i.e. they are cardinally aligned, never diagonally.
+  // This gives the player room to manoeuvre around enemies diagonally.
+  attackAdjacent(){
+    let hit=false;
+    for(const e of this.enemies){
+      if(!e.alive) continue;
+      // Must be exactly 1 step away
+      if(dist(e,Player)!==1) continue;
+      // Must be on the same row or same column (no diagonal attacks)
+      const sameRow=(e.y===Player.y), sameCol=(e.x===Player.x);
+      if(!sameRow&&!sameCol) continue;
+      const dmg=Player.takeDamage(e.atk);
+      Logger.add(`${e.name} hits you for ${dmg}!`,'dmg'); hit=true;
+    }
+    if(hit) flashScreen();
+  },
+};
+
+// ============================================================
+//  CombatSystem
+// ============================================================
+const CombatSystem = {
+  attack(enemy){
+    if(!enemy?.alive) return false;
+    const dmg=Math.max(1,Player.totalAtk-enemy.def+rng(-2,2));
+    enemy.hp-=dmg; Logger.add(`You hit ${enemy.name} for ${dmg}`,'');
+    if(enemy.hp<=0){
+      enemy.alive=false; Player.gainExp(enemy.exp); Player.gainGold(rng(...enemy.gold));
+      Logger.add(`${enemy.name} defeated!`,'loot');
+      this._drop(enemy); // drop chance handled inside _drop
+      return true;
+    }
+    return false;
+  },
+
+  skill(slot){
+    const sid=Player.skills[slot];
+    if(!sid){ Logger.add(`No skill in slot ${slot+1}`,'warn'); return false; }
+    const def=SKILL_DEFS[sid];
+    if(Player.mp<def.manaCost){ Logger.add('Not enough mana!','warn'); return false; }
+    Player.mp-=def.manaCost;
+
+    if(sid==='shadowstep'){
+      const p=MapGen.randomFloorInRoom(MapGen.rooms);
+      if(p&&!EntityManager.at(p.x,p.y)){ Player.x=p.x; Player.y=p.y; }
+      Logger.add('Shadow Step! Teleported.','skill'); return true;
+    }
+
+    let hits=0;
+    const candidates=EntityManager.enemies.filter(e=>e.alive&&dist(e,Player)<=def.range);
+    if(def.aoe){
+      for(const e of candidates){
+        const dmg=Math.max(1,Math.floor(Player.totalAtk*def.dmgMul));
+        e.hp-=dmg; Logger.add(`${def.name} hits ${e.name} for ${dmg}!`,'skill');
+        if(e.hp<=0){ e.alive=false; Player.gainExp(e.exp); Player.gainGold(rng(...e.gold)); Logger.add(`${e.name} defeated!`,'loot'); this._drop(e); }
+        hits++;
+      }
+      if(!hits) Logger.add(`${def.name}: No targets in range.`,'warn');
+    } else {
+      const t=candidates.sort((a,b)=>dist(a,Player)-dist(b,Player))[0];
+      if(!t){ Logger.add(`${def.name}: No target in range.`,'warn'); return true; }
+      const dmg=Math.max(1,Math.floor(Player.totalAtk*def.dmgMul));
+      t.hp-=dmg; Logger.add(`${def.name} hits ${t.name} for ${dmg}!`,'skill');
+      if(sid==='vampiricblow'){ const h=Math.floor(dmg*0.5); Player.heal(h); Logger.add(`Drained ${h} HP!`,'heal'); }
+      if(t.hp<=0){ t.alive=false; Player.gainExp(t.exp); Player.gainGold(rng(...t.gold)); Logger.add(`${t.name} defeated!`,'loot'); this._drop(t); }
+    }
+    return true;
+  },
+
+  _drop(enemy){
+    const floor=GameState.floor;
+    // Drop chance: 35% on floor 1, rising to 55% by floor 5+
+    const dropChance=Math.min(35+floor*4, 55);
+    if(rng(1,100)>dropChance) return;
+
+    // 50% of drops are health potions (guaranteed healing support)
+    // 20% mana potions, 30% other items
+    const roll=rng(1,100);
+    let item;
+    if(roll<=50){
+      item={...mkP('Health Potion','🧪',30,0,1), baseVal:25};
+    } else if(roll<=70){
+      item={...mkP('Mana Potion','💧',0,25,1), baseVal:25};
+    } else {
+      const pool=ITEM_POOL.filter(it=>it.floor<=floor&&it.type!=='book'&&it.type!=='potion');
+      if(!pool.length){ item={...mkP('Health Potion','🧪',30,0,1), baseVal:25}; }
+      else { item={...pool[rng(0,pool.length-1)]}; }
+    }
+
+    const rarity=this._rarity(floor);
+    if(Player.addItem(this._scale(item,rarity,floor),rarity))
+      Logger.add(`Dropped: ${item.icon} ${item.name} (${rarity})`,'loot');
+  },
+  _rarity(f){ const r=rng(1,100); if(f>=4&&r<=10)return'epic'; if(f>=2&&r<=30)return'rare'; return'common'; },
+  _scale(item,rarity,floor){
+    const m={common:1,rare:1.5,epic:2.2}[rarity], s={...item};
+    if(s.atk) s.atk=Math.ceil(s.atk*m*(1+floor*0.1));
+    if(s.def) s.def=Math.ceil(s.def*m*(1+floor*0.1));
+    if(s.hp&&s.type!=='potion') s.hp=Math.ceil(s.hp*m);
+    if(s.baseVal) s.baseVal=Math.ceil(s.baseVal*m*(1+floor*0.08));
+    return s;
+  },
+  openChest(ch){
+    if(ch.opened) return; ch.opened=true;
+    const gold=rng(10,20+GameState.floor*8);
+    Player.gainGold(gold); Logger.add(`Chest opened! +${gold} gold`,'gold');
+    if(rng(0,1)===1){
+      const pool=ITEM_POOL.filter(it=>it.floor<=GameState.floor);
+      if(pool.length){
+        const item={...pool[rng(0,pool.length-1)]};
+        const rarity=this._rarity(GameState.floor);
+        if(Player.addItem(this._scale(item,rarity,GameState.floor),rarity))
+          Logger.add(`Found: ${item.icon} ${item.name} (${rarity})!`,'loot');
+      }
+    }
+  },
+};
+
+// ============================================================
+//  GameState
+// ============================================================
+const GameState = {
+  state:'EXPLORE', floor:1, turnCount:0, selectedInvIdx:-1,
+  setFloor(n){ this.floor=n; document.getElementById('floor-info').textContent=`FLOOR ${n}`; },
+};
+
+// ============================================================
+//  MerchantSystem
+// ============================================================
+const MerchantSystem = {
+  stock:[],
+  generate(floor){
+    this.stock=[];
+    const pool=ITEM_POOL.filter(it=>it.floor<=floor+1);
+    for(let i=0;i<rng(3,5);i++){
+      const item={...pool[rng(0,pool.length-1)]};
+      const rarity=CombatSystem._rarity(floor);
+      const scaled=CombatSystem._scale(item,rarity,floor);
+      this.stock.push({item:scaled,rarity,price:Math.ceil(scaled.baseVal*(1+floor*0.05)),type:'item'});
+    }
+    const unlearned=SKILL_BOOKS.filter(b=>!Player.knownSkills.includes(b.skill));
+    for(let i=0;i<Math.min(rng(1,2),unlearned.length);i++){
+      const idx=rng(0,unlearned.length-1), book=unlearned.splice(idx,1)[0];
+      this.stock.push({item:{...book,type:'book'},rarity:'common',price:Math.ceil(book.price*(1+floor*0.05)),type:'book'});
+    }
+  },
+  buy(idx){
+    const e=this.stock[idx]; if(!e) return;
+    if(Player.gold<e.price){ Logger.add('Not enough gold!','warn'); return; }
+    if(e.type==='book'){
+      if(Player.knownSkills.includes(e.item.skill)){ Logger.add('Already known!','warn'); return; }
+      Player.spendGold(e.price); Player.learnSkill(e.item.skill);
+      Logger.add(`Bought ${e.item.name}!`,'skill');
+    } else {
+      if(Player.inventory.length>=INV_MAX){ Logger.add('Inventory full!','warn'); return; }
+      Player.spendGold(e.price); Player.addItem(e.item,e.rarity);
+      Logger.add(`Bought ${e.item.icon} ${e.item.name}!`,'loot');
+    }
+    this.stock.splice(idx,1);
+    UIManager.renderMerchant(); UIManager.updateAll();
+  },
+};
+
+// ============================================================
+//  Renderer — layered drawing pipeline
+//  Layers (bottom to top):
+//    1. Floor tiles
+//    2. Wall tiles
+//    3. Stairs
+//    4. Chests / Merchant
+//    5. Enemies + HP bars
+//    6. Player
+//    7. Fog of War overlay
+// ============================================================
+const Renderer = {
+  canvas:null, ctx:null,
+
+  init(){
+    this.canvas=document.getElementById('map-canvas');
+    this.ctx=this.canvas.getContext('2d');
+    this.resize();
+    window.addEventListener('resize',()=>{ this.resize(); this.draw(); });
+  },
+
+  resize(){
+    const area=document.getElementById('map-area');
+    const w=area.clientWidth||800, h=area.clientHeight||600;
+    this.canvas.width=w; this.canvas.height=h;
+    Camera.vw=w; Camera.vh=h;
+    TilePainter.clearCache(); // tiles must be re-generated at new size
+  },
+
+  draw(){
+    const ctx=this.ctx;
+    Camera.follow(Player.x,Player.y);
+    // Black base (unseen tiles)
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+
+    const {x0,y0,x1,y1}=Camera.range();
+
+    // ── Layer 1 & 2: Floor + Walls ──────────────────────────
+    for(let ty=y0;ty<=y1;ty++){
+      for(let tx=x0;tx<=x1;tx++){
+        if(!FogOfWar.isExplored(tx,ty)) continue;
+        const {sx,sy}=Camera.toScreen(tx,ty);
+        const tile=MapGen.tiles[ty][tx], alt=(tx+ty)%2===1;
+        if(tile===T.FLOOR||tile===T.STAIRS){
+          TilePainter.floor(ctx,sx,sy,TS,TS,alt);
+        } else {
+          // Wall gets a lit top edge when floor is directly south
+          const litFace=ty+1<ROWS&&MapGen.tiles[ty+1][tx]!==T.WALL;
+          TilePainter.wall(ctx,sx,sy,TS,TS,litFace);
+        }
+      }
+    }
+
+    // ── Layer 3: Stairs ─────────────────────────────────────
+    for(let ty=y0;ty<=y1;ty++){
+      for(let tx=x0;tx<=x1;tx++){
+        if(MapGen.tiles[ty][tx]!==T.STAIRS) continue;
+        if(!FogOfWar.isExplored(tx,ty)) continue;
+        const {sx,sy}=Camera.toScreen(tx,ty);
+        TilePainter.stairs(ctx,sx,sy,TS,TS);
+      }
+    }
+
+    // ── Layer 4: Chests + Merchant ───────────────────────────
+    for(const ch of EntityManager.chests){
+      if(!FogOfWar.isExplored(ch.x,ch.y)) continue;
+      const {sx,sy}=Camera.toScreen(ch.x,ch.y);
+      if(!this._vis(sx,sy)) continue;
+      TilePainter.chest(ctx,sx,sy,TS,TS,ch.opened);
+    }
+    if(EntityManager.merchant&&FogOfWar.isVisible(EntityManager.merchant.x,EntityManager.merchant.y)){
+      const {sx,sy}=Camera.toScreen(EntityManager.merchant.x,EntityManager.merchant.y);
+      if(this._vis(sx,sy)) TilePainter.merchant(ctx,sx,sy,TS,TS);
+    }
+
+    // ── Layer 5: Enemies + HP bars ───────────────────────────
+    for(const e of EntityManager.enemies){
+      if(!e.alive||!FogOfWar.isVisible(e.x,e.y)) continue;
+      const {sx,sy}=Camera.toScreen(e.x,e.y);
+      if(!this._vis(sx,sy)) continue;
+      // Shadow ellipse
+      ctx.fillStyle='rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.ellipse(sx+TS/2,sy+TS-5,TS*0.28,4,0,0,Math.PI*2); ctx.fill();
+      TilePainter.enemy(ctx,sx,sy,TS,TS,e);
+      // HP bar
+      const bw=TS-4, bx=sx+2, by=sy+TS-6;
+      const ratio=clamp(e.hp/e.maxHp,0,1);
+      ctx.fillStyle='#1a0000'; ctx.fillRect(bx,by,bw,3);
+      ctx.fillStyle=ratio>0.4?PAL.hpHigh:PAL.hpLow;
+      ctx.fillRect(bx,by,Math.floor(bw*ratio),3);
+    }
+
+    // ── Layer 6: Player ──────────────────────────────────────
+    {
+      const {sx,sy}=Camera.toScreen(Player.x,Player.y);
+      ctx.fillStyle='rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.ellipse(sx+TS/2,sy+TS-5,TS*0.26,4,0,0,Math.PI*2); ctx.fill();
+      TilePainter.player(ctx,sx,sy,TS,TS);
+    }
+
+    // ── Layer 7: Fog of War overlay ──────────────────────────
+    // Two passes: explored-dark tiles get semi-transparent overlay;
+    // unexplored tiles are covered with solid black.
+    for(let ty=y0;ty<=y1;ty++){
+      for(let tx=x0;tx<=x1;tx++){
+        const {sx,sy}=Camera.toScreen(tx,ty);
+        if(FogOfWar.isVisible(tx,ty)){
+          // Fully lit — no overlay
+        } else if(FogOfWar.isExplored(tx,ty)){
+          ctx.fillStyle=PAL.fogDark; ctx.fillRect(sx,sy,TS,TS);
+        } else {
+          ctx.fillStyle='#000'; ctx.fillRect(sx,sy,TS,TS);
+        }
+      }
+    }
+  },
+
+  // Is screen rect at least partially on-canvas?
+  _vis(sx,sy){ return sx+TS>0&&sy+TS>0&&sx<this.canvas.width&&sy<this.canvas.height; },
+};
+
+// ============================================================
+//  UIManager
+// ============================================================
+const UIManager = {
+  updateAll(){ this.updateVitals(); this.updateStats(); this.updateSkills(); this.updateEquipment(); this.updateGold(); },
+  updateVitals(){
+    const mhp=Player.totalMaxHp;
+    document.getElementById('hp-label').textContent=`${Player.hp}/${mhp}`;
+    document.getElementById('mp-label').textContent=`${Player.mp}/${Player.maxMp}`;
+    document.getElementById('exp-label').textContent=`${Player.exp}/${Player.expNext}`;
+    document.getElementById('hp-bar').style.width=clamp(Player.hp/mhp*100,0,100)+'%';
+    document.getElementById('mp-bar').style.width=clamp(Player.mp/Player.maxMp*100,0,100)+'%';
+    document.getElementById('exp-bar').style.width=clamp(Player.exp/Player.expNext*100,0,100)+'%';
+  },
+  updateStats(){
+    document.getElementById('stat-lvl').textContent=Player.level;
+    document.getElementById('stat-atk').textContent=Player.totalAtk;
+    document.getElementById('stat-def').textContent=Player.totalDef;
+  },
+  updateSkills(){
+    const c=document.getElementById('skill-slots'); c.innerHTML='';
+    for(let i=0;i<SKILL_MAX;i++){
+      const sid=Player.skills[i],def=sid?SKILL_DEFS[sid]:null;
+      const d=document.createElement('div');
+      d.className='skill-slot'+(def?'':' empty');
+      d.innerHTML=`<div class="skill-key">${i+1}</div><div class="skill-info">
+        <div class="skill-name">${def?def.icon+' '+def.name:'— empty —'}</div>
+        ${def?`<div class="skill-cost">MP: ${def.manaCost}</div>`:''}
+      </div>`;
+      c.appendChild(d);
+    }
+  },
+  updateEquipment(){
+    const c=document.getElementById('equip-slots'); c.innerHTML='';
+    for(const s of [{key:'weapon',label:'Weapon',icon:'⚔'},{key:'armor',label:'Armor',icon:'🛡'}]){
+      const eq=Player.equipment[s.key];
+      const d=document.createElement('div'); d.className='equip-slot';
+      d.innerHTML=`<div class="equip-icon">${eq?eq.icon:s.icon}</div><div class="equip-info">
+        <div class="equip-lbl">${s.label}</div><div class="equip-name">${eq?eq.name:'— none —'}</div>
+        <div class="equip-stat">${eq?(eq.atk?`+${eq.atk} ATK`:`+${eq.def} DEF${eq.hp?` +${eq.hp} HP`:''}`):''}
+        </div></div>`;
+      c.appendChild(d);
+    }
+  },
+  updateGold(){ document.getElementById('gold-display').textContent=`💰 ${Player.gold} GOLD`; },
+
+  openInventory(){
+    GameState.state='INVENTORY'; GameState.selectedInvIdx=-1;
+    document.getElementById('inv-overlay').classList.add('active');
+    this.renderInventory();
+  },
+  closeInventory(){
+    GameState.state='EXPLORE';
+    document.getElementById('inv-overlay').classList.remove('active');
+    const det=document.getElementById('item-detail');
+    det.classList.remove('active'); det.innerHTML='';
+  },
+  renderInventory(){
+    const grid=document.getElementById('inv-grid'); grid.innerHTML='';
+    for(let i=0;i<INV_MAX;i++){
+      const cell=document.createElement('div'), entry=Player.inventory[i];
+      if(entry){
+        cell.className=`inv-cell rarity-${entry.rarity}${i===GameState.selectedInvIdx?' selected':''}`;
+        cell.textContent=entry.item.icon||'?'; cell.onclick=()=>this.selectInvItem(i);
+      } else { cell.className='inv-cell empty'; }
+      grid.appendChild(cell);
+    }
+  },
+  selectInvItem(idx){
+    GameState.selectedInvIdx=idx; this.renderInventory();
+    const entry=Player.inventory[idx]; if(!entry) return;
+    const item=entry.item, stats=[];
+    if(item.atk) stats.push(`+${item.atk} ATK`);
+    if(item.def) stats.push(`+${item.def} DEF`);
+    if(item.hp)  stats.push(`+${item.hp} HP`);
+    if(item.mp)  stats.push(`+${item.mp} MP`);
+    const sell=Math.floor((item.baseVal||20)*0.6);
+    let acts='';
+    if(item.type==='weapon'||item.type==='armor') acts+=`<button class="item-btn" onclick="UIManager.doEquip(${idx})">EQUIP</button>`;
+    if(item.type==='potion'||item.type==='book')  acts+=`<button class="item-btn" onclick="UIManager.doUse(${idx})">USE</button>`;
+    acts+=`<button class="item-btn danger" onclick="UIManager.doSell(${idx})">SELL (${sell}g)</button>`;
+    const det=document.getElementById('item-detail'); det.classList.add('active');
+    det.innerHTML=`<div class="item-name">${item.icon} ${item.name}</div>
+      <div class="item-type">${item.type.toUpperCase()} · ${entry.rarity.toUpperCase()}</div>
+      <div class="item-stat">${stats.join('  ')}</div>
+      <div class="item-desc">${item.desc||''}</div>
+      <div class="item-actions">${acts}</div>`;
+  },
+  doEquip(idx){ Player.equipItem(idx); GameState.selectedInvIdx=-1; this.renderInventory(); this.updateEquipment(); this.updateStats(); document.getElementById('item-detail').classList.remove('active'); },
+  doUse(idx)  { if(Player.useItem(idx)){ GameState.selectedInvIdx=-1; this.renderInventory(); this.updateVitals(); this.updateSkills(); document.getElementById('item-detail').classList.remove('active'); } },
+  doSell(idx) {
+    const e=Player.inventory[idx]; if(!e) return;
+    const val=Math.floor((e.item.baseVal||20)*0.6);
+    Player.gainGold(val); Logger.add(`Sold ${e.item.name} for ${val}g`,'gold');
+    Player.removeItem(idx); GameState.selectedInvIdx=-1;
+    this.renderInventory(); this.updateGold();
+    document.getElementById('item-detail').classList.remove('active');
+  },
+
+  openMerchant(){
+    GameState.state='MERCHANT'; MerchantSystem.generate(GameState.floor);
+    document.getElementById('merchant-overlay').classList.add('active'); this.renderMerchant();
+  },
+  closeMerchant(){
+    GameState.state='EXPLORE';
+    document.getElementById('merchant-overlay').classList.remove('active');
+  },
+  renderMerchant(){
+    const grid=document.getElementById('merchant-grid');
+    grid.innerHTML=`<p style="font-size:8px;color:var(--dim);margin-bottom:4px;">Your gold: ${Player.gold}</p>`;
+    for(let i=0;i<MerchantSystem.stock.length;i++){
+      const e=MerchantSystem.stock[i], item=e.item, can=Player.gold>=e.price;
+      const div=document.createElement('div'); div.className='merchant-item'+(can?'':' merchant-cant');
+      const stats=[];
+      if(item.atk) stats.push(`+${item.atk} ATK`);
+      if(item.def) stats.push(`+${item.def} DEF`);
+      if(item.hp&&item.type!=='potion') stats.push(`+${item.hp} HP`);
+      if(item.hp&&item.type==='potion') stats.push(`Heal ${item.hp}`);
+      if(item.mp) stats.push(`MP+${item.mp}`);
+      if(item.type==='book') stats.push(SKILL_DEFS[item.skill]?.desc||'Learn skill');
+      div.innerHTML=`<div class="merchant-icon">${item.icon}</div>
+        <div class="merchant-info"><div class="merchant-name">${item.name}</div>
+        <div class="merchant-stat">${stats.join(' · ')}</div></div>
+        <div class="merchant-price">${e.price}g</div>`;
+      if(can) div.onclick=()=>MerchantSystem.buy(i);
+      grid.appendChild(div);
+    }
+  },
+  showGameOver(){
+    GameState.state='GAME_OVER';
+    document.getElementById('death-stats').textContent=
+      `Floor: ${GameState.floor}  ·  Level: ${Player.level}  ·  Turns: ${GameState.turnCount}  ·  Gold: ${Player.gold}`;
+    document.getElementById('game-over-screen').classList.add('active');
+  },
+  closeAllOverlays(){
+    document.getElementById('inv-overlay').classList.remove('active');
+    document.getElementById('merchant-overlay').classList.remove('active');
+    const det=document.getElementById('item-detail'); det.classList.remove('active'); det.innerHTML='';
+  },
+};
+
+// ============================================================
+//  InputHandler
+// ============================================================
+const InputHandler = {
+  lockUntil:0,
+  init(){ document.addEventListener('keydown',e=>this.onKey(e)); },
+  onKey(e){
+    if(GameState.state==='GAME_OVER') return;
+    const gk=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D','1','2','3','i','I','e','E',' '];
+    if(gk.includes(e.key)) e.preventDefault();
+    const now=Date.now(); if(now<this.lockUntil) return; this.lockUntil=now+160;
+    const k=e.key;
+    if(k==='i'||k==='I'){ GameState.state==='INVENTORY'?UIManager.closeInventory():GameState.state==='EXPLORE'&&UIManager.openInventory(); return; }
+    if(GameState.state==='INVENTORY') return;
+    if(GameState.state==='MERCHANT'){ if(k==='e'||k==='E') UIManager.closeMerchant(); return; }
+    if(GameState.state!=='EXPLORE') return;
+    const dirs={'ArrowUp':{x:0,y:-1},'ArrowDown':{x:0,y:1},'ArrowLeft':{x:-1,y:0},'ArrowRight':{x:1,y:0},
+                'w':{x:0,y:-1},'s':{x:0,y:1},'a':{x:-1,y:0},'d':{x:1,y:0},
+                'W':{x:0,y:-1},'S':{x:0,y:1},'A':{x:-1,y:0},'D':{x:1,y:0}};
+    if(dirs[k])          { Game.tryMove(dirs[k].x,dirs[k].y); return; }
+    if(k===' ')          { Game.tryAttack();  return; }
+    if(k==='1')          { Game.trySkill(0);  return; }
+    if(k==='2')          { Game.trySkill(1);  return; }
+    if(k==='3')          { Game.trySkill(2);  return; }
+    if(k==='e'||k==='E') { Game.tryInteract(); return; }
+  },
+};
+
+// ============================================================
+//  Game — main controller
+// ============================================================
+const Game = {
+  init(){
+    Renderer.init(); InputHandler.init();
+    document.getElementById('start-btn').onclick=()=>this.startGame();
+    document.getElementById('restart-btn').onclick=()=>this.startGame();
+  },
+
+  startGame(){
+    GameState.state='EXPLORE'; GameState.floor=0; GameState.turnCount=0;
+    GameState.selectedInvIdx=-1; InputHandler.lockUntil=0;
+    document.getElementById('title-screen').style.display='none';
+    document.getElementById('game-container').classList.add('active');
+    document.getElementById('game-over-screen').classList.remove('active');
+    UIManager.closeAllOverlays();
+    Player.reset(); Logger.clear();
+    Logger.add('Welcome to the Crypts of Eternity!','info');
+    Logger.add('Explore the dark. Find stairs ▼ to descend.','dim');
+    const self=this;
+    requestAnimationFrame(()=>{ Renderer.resize(); self.nextFloor(); });
+  },
+
+  nextFloor(){
+    GameState.setFloor(GameState.floor+1);
+    const {rooms}=MapGen.generate(GameState.floor);
+    // Spawn player at first room's centre
+    Player.x=rooms[0].cx; Player.y=rooms[0].cy;
+    EntityManager.spawnFloor(GameState.floor,rooms);
+    FogOfWar.init();
+    FogOfWar.update(Player.x,Player.y);
+    Player.restoreMp(Math.floor(Player.maxMp*0.5));
+    Logger.add(`─── Floor ${GameState.floor} ───`,'info');
+    UIManager.updateAll(); Renderer.draw();
+  },
+
+  tryMove(dx,dy){
+    const nx=Player.x+dx, ny=Player.y+dy;
+    if(!MapGen.isWalkable(nx,ny)) return;
+    const e=EntityManager.at(nx,ny);
+    if(e){ CombatSystem.attack(e); this.endTurn(); return; }
+    Player.x=nx; Player.y=ny;
+    if(MapGen.tiles[ny][nx]===T.STAIRS){ Logger.add('Descending...','info'); this.nextFloor(); return; }
+    this.endTurn();
+  },
+  tryAttack(){
+    const t=EntityManager.enemies.find(e=>e.alive&&dist(e,Player)===1);
+    if(!t){ Logger.add('No adjacent enemy!','dim'); return; }
+    CombatSystem.attack(t); this.endTurn();
+  },
+  trySkill(s){ if(CombatSystem.skill(s)) this.endTurn(); },
+  tryInteract(){
+    const m=EntityManager.merchant;
+    if(m&&dist(m,Player)<=1){ UIManager.openMerchant(); return; }
+    for(const ch of EntityManager.chests){
+      if(!ch.opened&&dist(ch,Player)<=1){ CombatSystem.openChest(ch); UIManager.updateGold(); this.endTurn(); return; }
+    }
+    Logger.add('Nothing to interact with.','dim');
+  },
+  endTurn(){
+    GameState.turnCount++;
+    EntityManager.moveEnemies();
+    EntityManager.attackAdjacent();
+    // Passive MP regen every 4 turns, passive HP regen every 8 turns
+    if(GameState.turnCount%4===0)  Player.restoreMp(1);
+    if(GameState.turnCount%8===0)  Player.heal(1);
+    FogOfWar.update(Player.x,Player.y); // refresh visibility after all movement
+    if(Player.hp<=0){ UIManager.showGameOver(); Renderer.draw(); UIManager.updateAll(); return; }
+    UIManager.updateAll(); Renderer.draw();
+  },
+};
+
+// ── Flash utility ─────────────────────────────────────────────
+function flashScreen(){
+  const el=document.getElementById('flash');
+  el.classList.add('active');
+  setTimeout(()=>el.classList.remove('active'),150);
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+Game.init();
+</script>
 </body>
 </html>
